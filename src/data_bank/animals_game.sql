@@ -93,3 +93,19 @@ JOIN animal an ON a.id_animal = an.id_animal
 JOIN resultado r ON a.id_extracao = r.id_extracao
 WHERE a.id_animal = r.id_animal;
 
+-- Ponto 5.4: teste de ateração
+
+-- Alterar dados de um cliente 
+UPDATE cliente
+SET nome_cliente = 'João Batista', telefone = '84977773456', email = 'joaob@gmail.com', saldo = 100
+WHERE id_cliente = 1;
+
+-- Alterar os dados de uma aposta
+UPDATE aposta
+SET id_cliente = 2, id_extracao = 3, id_animal = 17, valor_apostado = 40
+WHERE id_aposta = 3; 
+
+-- Alterar os dados de um resultado
+UPDATE resultado
+SET id_extracao = 1, id_animal = 14
+WHERE id_resultado = 3;
