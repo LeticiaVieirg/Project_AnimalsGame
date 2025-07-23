@@ -3,7 +3,7 @@ create database if not exists animals_game;
 use animals_game;
 
 CREATE TABLE cliente(
-	id_cliente INT AUTO_INCREMENT PRIMARY KEY,
+    id_cliente INT AUTO_INCREMENT PRIMARY KEY,
     nome_cliente VARCHAR(50),
     telefone VARCHAR(50),
     email VARCHAR(50),
@@ -11,17 +11,17 @@ CREATE TABLE cliente(
 );
 
 CREATE TABLE animal(
-	id_animal INT PRIMARY KEY,
+    id_animal INT PRIMARY KEY,
     nome_animal VARCHAR (25)
 );
 
 CREATE TABLE extracao(
-	id_extracao INT PRIMARY KEY,
+    id_extracao INT PRIMARY KEY,
     data_extracao DATETIME
 );
 
 CREATE TABLE aposta(
-	id_aposta INT AUTO_INCREMENT PRIMARY KEY,
+    id_aposta INT AUTO_INCREMENT PRIMARY KEY,
     id_cliente INT,
     id_extracao INT,
     id_animal INT,
@@ -32,7 +32,7 @@ CREATE TABLE aposta(
 );
 
 CREATE TABLE resultado(
-	id_resultado INT AUTO_INCREMENT PRIMARY KEY,
+    id_resultado INT AUTO_INCREMENT PRIMARY KEY,
     id_extracao INT,
     id_animal INT,
     FOREIGN KEY (id_extracao) REFERENCES extracao (id_extracao),
