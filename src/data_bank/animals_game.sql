@@ -61,17 +61,18 @@ INSERT INTO extracao(id_extracao, data_extracao) VALUES
 (2, '2025-07-17 11:30:00'),
 (3, '2025-07-17 13:30:00'),
 (4, '2025-07-17 15:30:00'),
-(5, '2025-07-17 17:30:00');
+(5, '2025-07-17 17:30:00'),
+(6, '2025-07-18 09:30:00');
 
 INSERT INTO aposta (id_cliente, id_extracao, id_animal, valor_apostado) VALUES
 (1, 1, 15, 30.00 ),
-(3, 1, 15, 20.00 ),
-(2, 1, 15, 80.00 ),
-(5, 1, 15, 10.00 ),
-(4, 1, 15, 25.00 );
+(3, 1, 10, 20.00 ),
+(2, 1, 17, 80.00 ),
+(5, 1, 12, 10.00 ),
+(4, 1, 25, 25.00 );
 
 INSERT INTO resultado (id_extracao, id_animal) VALUES
-(1, 7),
+(1, 15),
 (2, 9),
 (3, 11),
 (4, 18),
@@ -92,3 +93,189 @@ JOIN extracao e ON a.id_extracao = e.id_extracao
 JOIN animal an ON a.id_animal = an.id_animal
 JOIN resultado r ON a.id_extracao = r.id_extracao
 WHERE a.id_animal = r.id_animal;
+
+-- Coluna pagamento 
+ALTER TABLE aposta ADD pago BOOLEAN DEFAULT FALSE;
+
+-- Mostrar os bilhetes acertaram o resultado e os que perderam
+
+CREATE OR REPLACE VIEW vw_bilhetes_resultados AS 
+SELECT 
+	a.id_aposta,
+    a.id_cliente,
+    c.nome_cliente,
+    a.id_extracao,
+    e.data_extracao,
+    a.id_animal AS animal_apostado,
+    r.id_animal AS animal_sorteado,
+    a.valor_apostado,
+    
+    CASE 
+		WHEN a.id_animal = r.id_animal THEN 'Ganhou'
+        ELSE 'Perdeu'
+        END AS status_aposta,
+        CASE 
+        WHEN a.id_animal = r.id_animal THEN a.valor_apostado * 18 
+        ELSE 0 
+        END AS valor_premio, 
+        a.pago
+        FROM aposta a
+        JOIN cliente c ON c.id_cliente = a.id_cliente
+        JOIN extracao e ON e.id_extracao = a.id_extracao
+        JOIN resultado r ON r.id_extracao = a.id_extracao;
+        
+-- Visualizar todos os bilhetes, status (ganhou ou perdeu).
+SELECT * FROM vw_bilhetes_resultados;
+
+DELIMITER $$
+
+CREATE PROCEDURE pagar_apostas ()
+	BEGIN 
+	
+    -- ATUALIZAR O SALDO DOS CLIENTES QUE GANHOU APSOTA 
+    
+    UPDATE cliente.c 
+    JOIN (SELECT a.id_cliente, SUM(a.valor_apostado * 18) AS premio_total
+    FROM aposta a
+    JOIN resultado r ON a.id_extracao = r.id_extracao
+    WHERE a.id_animal = r.id_animal AND a.pago = FALSE 
+    GROUP BY a.id_cliente) ganhadores ON c.id_cliente = ganhadores.id_cliente SET c.saldo = c.saldo + ganhadores.premio_total;
+    
+    -- Informa que a aposta foi paga 
+    UPDATE aposta a 
+    JOIN resultado r ON a.id_extracao = r.id_extracao 
+    SET a.pago = TRUE
+    WHERE a.id_animal = r.id_animal AND a.pago = FALSE;
+END $$
+DELIMITER ;
+
+-- Gatilhos
+-- Gatilho para validar aposta
+-- caso o cliente tenha saldo, confirma aposta e atualizar o saldo 
+-- caso o cliente não tenha saldo, não proseguir com a aposta;
+
+DELIMITER $$
+
+CREATE TRIGGER tg_realizaraposta
+	BEFORE INSERT ON aposta
+    FOR EACH ROW
+    BEGIN 
+		DECLARE saldo_atual DECIMAL (10,2);
+        
+        -- OBTER SALDO DO CLIENTE 
+        SELECT saldo INTO saldo_atual
+        FROM cliente
+        WHERE id_cliente = NEW.id_cliente;
+        
+		-- VERIFICA SE O CLIENTE TEM SALDO SUFICIENTE PARA REALIZAR APOSTA
+    IF saldo_atual <NEW.valor_apostado THEN 
+		-- CASO NÃO OBTENHA SALDO SUFICIENTE
+		SET MESSAGE_TEXT = 'SALDO INSUFICIENTE. APOSTA NÃO PODE SER REALIZDA';
+	ELSE 
+		UPDATE cliente
+        SET saldo = saldo - NEW.valor_apostado
+        WHERE id_cliente = NEW.id_cliente;
+	END IF;
+END $$
+
+-- bloquear extração após ser informado resultado.
+
+DELIMITER ;
+
+DELIMITER $$
+	
+CREATE TRIGGER tg_bloquearextracao
+	BEFORE INSERT ON aposta
+    FOR EACH ROW 
+    BEGIN 
+		DECLARE verifica_resultados INT;
+        
+        -- Verificar se a extração já tem resultado
+        
+        SELECT COUNT(*) INTO verifica_resultados
+        FROM resultado
+        WHERE id_extracao = NEW.id_extracao;
+        
+        -- Se já tive resultado 
+        IF verificar_resultado > 0 THEN
+        SET MESSAGE_TEXT = 'EXTRAÇÃO JÁ FOI REALIZADA. JÁ TEM RESULTADO CADASTRO';
+	END IF;
+END $$
+DELIMITER ;
+-- NÃO DEIXAR REALIZAR APOSTA CASO TENTE APOSTAR EM UM ANIMAL QUE NÃO TENHA NO BANCO DE DADOS
+
+DELIMITER $$
+
+CREATE TRIGGER tg_verificar_animal
+	BEFORE INSERT ON aposta 
+	FOR EACH ROW 
+	BEGIN
+		DECLARE animal_cadastrado INT;
+        
+        -- Verificar se ID informado está cadastrado na tabela animais 
+        SELECT COUNT(*) INTO animal_cadastrado 
+		FROM animal 
+        WHERE id_animal = NEW.id_animal;
+        
+        -- Caso não haja ID informado
+        IF animal_cadastrado = 0 THEN
+			SET MESSAGE_TEXT = 'NÃO É POSSÍVEL VALIDAR SUA APOSTA, POIS O ANIMAL É INVALIDO';
+		END IF;
+	END $$
+DELIMITER ; 
+
+
+-- Testes de Gatilhos
+	-- Descreva as operações que disparam cada gatilho.
+    -- Forneça os comandos SQL para simular essas operações e verifique os resultados esperados do gatilho.
+
+-- Aposta com Saldo Suficiente 
+
+SELECT saldo FROM cliente WHERE id_cliente = 1;
+
+-- Validar aposta 
+
+INSERT INTO aposta (id_cliente, id_extracao, id_animal, valor_apostado)
+VALUES (1, 1, 15, 30.00);
+
+-- Verificar saldo após apostar 
+SELECT saldo FROM cliente WHERE id_cliente = 1;
+
+-- verificar aposta 
+
+SELECT * FROM aposta WHERE id_cliente = 1; 
+
+-- Aposta sem saldo suficiente 
+
+SELECT saldo FROM cliente WHERE id_cliente = 5;
+
+-- validar aposta 
+
+INSERT INTO aposta (id_cliente, id_extracao, id_animal, valor_apostado)
+VALUES (5, 1, 25, 150.00);
+
+-- Extracao bloqueada / já tem resultado
+SELECT * FROM resultado;
+INSERT INTO aposta (id_cliente, id_extracao, id_animal, valor_apostado)
+VALUES (2, 1, 15, 100.00);
+
+-- Extracao sem resultado 
+-- Verificar se a extracao 6, ainda está sem resultado
+SELECT * FROM resultado WHERE id_extracao = 6;
+
+-- Apostar na extracão 6
+INSERT INTO aposta (id_cliente, id_extracao, id_animal, valor_apostado)
+VALUES (3, 6, 12, 20.00);
+
+
+-- animal válido 
+
+INSERT INTO aposta (id_cliente, id_extracao, id_animal, valor_apostado)
+VALUES (3, 6, 12, 20.00);
+
+
+-- animal inválido
+-- Aposta não pode ser realizada.
+
+INSERT INTO aposta (id_cliente, id_extracao, id_animal, valor_apostado)
+VALUES (4, 6, 99, 20.00);
