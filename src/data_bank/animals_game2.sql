@@ -242,3 +242,23 @@ WHERE id_aposta = 3;
 UPDATE resultado
 SET id_extracao = 1, id_animal = 14
 WHERE id_resultado = 3;
+
+-- Indices
+
+CREATE INDEX idx_cliente_email ON cliente(email);
+-- Consultas que buscam cliente por e-mail serão instantâneas.
+
+CREATE INDEX idx_animal_nome ON animal(nome_animal);
+-- Permite buscas por nome sem varredura completa.
+
+CREATE INDEX idx_extracao_data ON extracao(data_extracao);
+-- Consultas ordenadas por data serão mais rápidas.
+
+CREATE INDEX idx_aposta_cliente ON aposta(id_cliente);
+CREATE INDEX idx_aposta_extracao ON aposta(id_extracao);
+CREATE INDEX idx_aposta_animal ON aposta(id_animal);
+-- Aceleram as consultas em JOINs
+
+CREATE INDEX idx_resultado_extracao ON resultado(id_extracao);
+CREATE INDEX idx_resultado_animal ON resultado(id_animal);
+-- Aceleram consultas que verificam qual animal foi sorteado.
