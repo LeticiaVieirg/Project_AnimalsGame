@@ -224,6 +224,33 @@ CREATE TRIGGER tg_verificar_animal
 	END $$
 DELIMITER ; 
 
+-- Função para retornar o saldo atual de um cliente pelo ID
+DELIMITER $$
+CREATE FUNCTION fn_saldo_cliente(p_id_cliente INT)
+RETURNS DECIMAL(10,2)
+DETERMINISTIC
+BEGIN
+    DECLARE saldo_cliente DECIMAL(10,2);
+    SELECT saldo INTO saldo_cliente
+    FROM cliente
+    WHERE id_cliente = p_id_cliente;
+    RETURN saldo_cliente;
+END $$
+DELIMITER ;
+
+-- Função para calcular o total apostado por um cliente
+DELIMITER $$
+CREATE FUNCTION fn_total_apostado_por_cliente(p_id_cliente INT)
+RETURNS DECIMAL(10,2)
+DETERMINISTIC
+BEGIN
+    DECLARE total_apostado DECIMAL(10,2);
+    SELECT COALESCE(SUM(valor_apostado), 0) INTO total_apostado
+    FROM aposta
+    WHERE id_cliente = p_id_cliente;
+    RETURN total_apostado;
+END $$
+DELIMITER ;
 
 -- Testes de Gatilhos
 	-- Descreva as operações que disparam cada gatilho.
@@ -253,6 +280,7 @@ SELECT saldo FROM cliente WHERE id_cliente = 5;
 
 INSERT INTO aposta (id_cliente, id_extracao, id_animal, valor_apostado)
 VALUES (5, 1, 25, 150.00);
+
 
 -- Extracao bloqueada / já tem resultado
 SELECT * FROM resultado;
