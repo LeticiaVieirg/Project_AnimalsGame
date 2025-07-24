@@ -307,3 +307,11 @@ VALUES (3, 6, 12, 20.00);
 
 INSERT INTO aposta (id_cliente, id_extracao, id_animal, valor_apostado)
 VALUES (4, 6, 99, 20.00);
+
+-- Exemplos de testes simples para as funções
+
+-- Testar saldo do cliente 1
+SELECT fn_saldo_cliente(1) AS saldo_cliente;
+
+-- Testar total apostado pelo cliente 3
+SELECT fn_total_apostado_por_cliente(3) AS total_apostado;
