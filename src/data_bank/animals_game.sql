@@ -252,6 +252,36 @@ BEGIN
 END $$
 DELIMITER ;
 
+CREATE OR REPLACE VIEW vw_total_apostado_por_cliente AS
+SELECT 
+    c.id_cliente,
+    c.nome_cliente,
+    COUNT(a.id_aposta) AS total_apostas,
+    SUM(a.valor_apostado) AS total_valor_apostado
+FROM cliente c
+LEFT JOIN aposta a ON a.id_cliente = c.id_cliente
+GROUP BY c.id_cliente, c.nome_cliente;
+
+CREATE OR REPLACE VIEW vw_animais_mais_apostados AS
+SELECT 
+    an.id_animal,
+    an.nome_animal,
+    COUNT(a.id_aposta) AS total_apostas
+FROM animal an
+LEFT JOIN aposta a ON an.id_animal = a.id_animal
+GROUP BY an.id_animal, an.nome_animal
+ORDER BY total_apostas DESC;
+
+CREATE OR REPLACE VIEW vw_extracoes_com_resultado AS
+SELECT 
+    e.id_extracao,
+    e.data_extracao,
+    an.id_animal,
+    an.nome_animal AS animal_sorteado
+FROM resultado r
+JOIN extracao e ON e.id_extracao = r.id_extracao
+JOIN animal an ON an.id_animal = r.id_animal;
+
 -- Testes de Gatilhos
 	-- Descreva as operações que disparam cada gatilho.
     -- Forneça os comandos SQL para simular essas operações e verifique os resultados esperados do gatilho.
