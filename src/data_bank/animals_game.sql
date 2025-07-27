@@ -2,6 +2,21 @@ drop database animals_game;
 create database if not exists animals_game;
 use animals_game;
 
+-- Buscas: Cliente, Extração e Apostas
+CREATE INDEX idx_aposta_cliente ON aposta(id_cliente);
+CREATE INDEX idx_aposta_extracao ON aposta(id_extracao);
+CREATE INDEX idx_aposta_animal ON aposta(id_animal);
+
+-- Verificação de Apostas Vencedoras
+CREATE INDEX idx_aposta_extracao_animal ON aposta(id_extracao, id_animal);
+
+-- Verificação de Resultados
+CREATE INDEX idx_resultado_extracao ON resultado(id_extracao);
+CREATE INDEX idx_resultado_animal ON resultado(id_animal);
+
+-- Busca por nome de clientes
+CREATE INDEX idx_cliente_nome ON cliente(nome_cliente);
+
 CREATE TABLE cliente(
     id_cliente INT AUTO_INCREMENT PRIMARY KEY,
     nome_cliente VARCHAR(50),
