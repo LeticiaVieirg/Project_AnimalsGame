@@ -1,4 +1,6 @@
--- Função: Retorna o saldo atual de um cliente pelo ID
+USE animals_game;
+
+-- Função 1: Retorna o saldo atual de um cliente
 DELIMITER $$
 CREATE FUNCTION fn_saldo_cliente(p_id_cliente INT)
 RETURNS DECIMAL(10,2)
@@ -14,7 +16,7 @@ BEGIN
 END $$
 DELIMITER ;
 
--- Função: Calcula o total apostado por um cliente
+-- Função 2: Calcula o total apostado por um cliente
 DELIMITER $$
 CREATE FUNCTION fn_total_apostado_por_cliente(p_id_cliente INT)
 RETURNS DECIMAL(10,2)
