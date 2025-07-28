@@ -1,21 +1,23 @@
 -- 1. SQL com os creates, alter tables e visões (views)
 
--- 4.1
+-- 4.1 Criacao do banco de dados, caso nao exista
+-- Usa o banco de dados criado
 drop database animals_game;
 create database if not exists animals_game;
 use animals_game;
 
+-- 
 CREATE TABLE cliente(
-    id_cliente INT AUTO_INCREMENT PRIMARY KEY,
-    nome_cliente VARCHAR(50),
-    telefone VARCHAR(50),
+    id_cliente INT AUTO_INCREMENT PRIMARY KEY,  -- id do cliente e chave principal e autoincremento
+    nome_cliente VARCHAR(50),                   -- nome do cliente é char com cerca de 50 letras
+    telefone VARCHAR(50),                       -- telefone é caracter com 50 letras
     email VARCHAR(50),
     saldo DECIMAL (10,2)
 );
 
 CREATE TABLE animal(
     id_animal INT PRIMARY KEY,
-    nome_animal VARCHAR (25)
+    nome_animal VARCHAR(25)
 );
 
 CREATE TABLE extracao(
@@ -30,8 +32,8 @@ CREATE TABLE aposta(
     id_animal INT,
     valor_apostado DECIMAL (10,2),
     FOREIGN KEY (id_cliente) REFERENCES cliente(id_cliente),
-    FOREIGN KEY (id_extracao) REFERENCES extracao (id_extracao),
-    FOREIGN KEY (id_animal) REFERENCES animal (id_animal)
+    FOREIGN KEY (id_extracao) REFERENCES extracao (id_extracao), -- chave estrageira id cliente que referencia id em cliente
+    FOREIGN KEY (id_animal) REFERENCES animal (id_animal)        -- chave estrageria id animal que referencia id em animal
 );
 
 CREATE TABLE resultado(
@@ -83,6 +85,7 @@ INSERT INTO resultado (id_extracao, id_animal) VALUES
 
 -- 4.2
 -- View 1: Simplificacao de consultas de apostas vencedoras
+-- Seleciona as principais informacoes de aposta
 CREATE VIEW vw_apostas_vencedoras AS
 SELECT 
     a.id_aposta,
@@ -93,15 +96,17 @@ SELECT
     a.valor_apostado,
     (a.valor_apostado * 18.00) AS valor_premio
 FROM aposta a
-JOIN cliente c ON a.id_cliente = c.id_cliente
-JOIN extracao e ON a.id_extracao = e.id_extracao
+JOIN cliente c ON a.id_cliente = c.id_cliente                  -- relaciona a tabela aposta com o cliente, por meio do idcliente
+JOIN extracao e ON a.id_extracao = e.id_extracao               -- relaciona a tabela aposta com extracao 
 JOIN animal an_aposta ON a.id_animal = an_aposta.id_animal
 JOIN resultado r ON a.id_extracao = r.id_extracao
 JOIN animal an_resultado ON r.id_animal = an_resultado.id_animal
-WHERE a.id_animal = r.id_animal;
+WHERE a.id_animal = r.id_animal;                                -- filtro para mostrar somente as apostas onde o animal é sorteado
+                                                                -- a aposta que contem o id do animal equivale ao resultado do id do animal
 
 
--- View 2: Visualizacao do saldo dos clientes com classificacao
+-- View 2: Tabela virtual do saldo dos clientes com classificacao
+-- Seleciona algumas informacoes referentes ao cliente 
 CREATE VIEW vw_saldo_clientes AS
 SELECT 
     id_cliente,
@@ -109,29 +114,29 @@ SELECT
     telefone,
     email,
     saldo,
-    CASE 
-        WHEN saldo > 200 THEN 'Alto'
-        WHEN saldo BETWEEN 100 AND 200 THEN 'Médio'
-        ELSE 'Baixo'
-    END AS nivel_saldo
+    CASE                                             -- Condicional que classifica os clientes com base no valor do seu saldo
+        WHEN saldo > 200 THEN 'Alto'                 -- Onde o saldo for maior que 200, é considerado alto 
+        WHEN saldo BETWEEN 100 AND 200 THEN 'Médio'  -- Onde o saldo for entre 100 e 200, esta dito como saldo medio
+        ELSE 'Baixo'                                 -- Onde o saldo estiver fora das condicoes citadas, é dito como baixo 
+    END AS nivel_saldo                               -- Cria uma nova coluna chamada nivel_saldo
 FROM cliente;
 
 -- Clientes com saldo alto para ofertas especiais
 SELECT * FROM vw_saldo_clientes WHERE nivel_saldo = 'Alto';
 
--- View 3: Animais mais populares entre os apostadores, incluindo contagem de 
--- aposta e valor total apostado
+-- View 3: Tabela virtual com os animais mais populares entre os apostadores
+-- Incluindo contagem de aposta e valor total apostado
 CREATE VIEW vw_animais_mais_apostados AS
 SELECT 
     a.id_animal,
     an.nome_animal,
-    COUNT(*) AS total_apostas,
-    SUM(ap.valor_apostado) AS valor_total_apostado
+    COUNT(*) AS total_apostas,                      -- Conta o numero total de apostas por animal 
+    SUM(ap.valor_apostado) AS valor_total_apostado  -- Soma todos os valores apostados no animal 
 FROM animal a
 JOIN aposta ap ON a.id_animal = ap.id_animal
 JOIN animal an ON a.id_animal = an.id_animal
-GROUP BY a.id_animal, an.nome_animal
-ORDER BY total_apostas DESC;
+GROUP BY a.id_animal, an.nome_animal                -- Agrupo os resultados de id animal e nome do animal
+ORDER BY total_apostas DESC;                        -- Ordeno o total de apostas em ordem decrescente, animais mais apostados aparecem primeiro
 
 -- Consulta simples para apostas vencedoras não pagas
 SELECT * FROM vw_apostas_vencedoras WHERE valor_premio > 0;
@@ -143,34 +148,36 @@ SELECT
     e.id_extracao,
     e.data_extracao,
     a.nome_animal AS animal_sorteado,
+    -- Conta o numero todal de apostas onde as apostas foram sorteadas 
     (SELECT COUNT(*) FROM aposta ap WHERE ap.id_extracao = e.id_extracao) AS total_apostas,
+    -- Soma o valor apostado de apostas, onde a aposta foi sorteada
     (SELECT SUM(ap.valor_apostado) FROM aposta ap WHERE ap.id_extracao = e.id_extracao) AS valor_total_apostado
 FROM extracao e
-JOIN resultado r ON e.id_extracao = r.id_extracao
-JOIN animal a ON r.id_animal = a.id_animal;
+JOIN resultado r ON e.id_extracao = r.id_extracao           -- Relaciona a tabela extracao com o resultado por meio do id da extracao 
+JOIN animal a ON r.id_animal = a.id_animal;                 -- Relaciona a tabela extracao com o animal, por meio do id do animal
 
 -- View 5 : Resumo total apostado por cada cliente
 -- Lista todos os clientes, com apostas e sem apostas
-CREATE OR REPLACE VIEW vw_total_apostado_por_cliente AS
+CREATE OR REPLACE VIEW vw_total_apostado_por_cliente AS       -- Cria ou substitui a nova tabela virtual
 SELECT 
     c.id_cliente,
     c.nome_cliente,
-    COUNT(a.id_aposta) AS total_apostas,
-    SUM(a.valor_apostado) AS total_valor_apostado
+    COUNT(a.id_aposta) AS total_apostas,                      -- Conta em apostas, a quantidade de apostas do cliente 
+    SUM(a.valor_apostado) AS total_valor_apostado             -- Soma todos os valores apostados pelo cliente
 FROM cliente c
-LEFT JOIN aposta a ON a.id_cliente = c.id_cliente
-GROUP BY c.id_cliente, c.nome_cliente;
+LEFT JOIN aposta a ON a.id_cliente = c.id_cliente             -- Mamtem todos os clientes mesmo os que nao fizeram apostas
+GROUP BY c.id_cliente, c.nome_cliente;                        -- Agrupamenteo do nome do cliente e do id
 
 -- View 6 : Mostra quais animais sao mais populares entre os apostadores
 CREATE OR REPLACE VIEW vw_animais_mais_apostados AS
 SELECT 
     an.id_animal,
     an.nome_animal,
-    COUNT(a.id_aposta) AS total_apostas
+    COUNT(a.id_aposta) AS total_apostas                       -- Conta o total de apostas referente ao animal
 FROM animal an
-LEFT JOIN aposta a ON an.id_animal = a.id_animal
-GROUP BY an.id_animal, an.nome_animal
-ORDER BY total_apostas DESC;
+LEFT JOIN aposta a ON an.id_animal = a.id_animal              -- Mantem todos os animais, mesmo os que nao foram apostados
+GROUP BY an.id_animal, an.nome_animal                         -- Agrupa dos id e nome do animal
+ORDER BY total_apostas DESC;                                  -- Ordena o total de apostas em ordem decrescente 
 
 -- View 7: Mostra uma lista completa de todas as extracoes realizadas e os seus resultados
 -- Extracoes com resultados definidos
@@ -179,7 +186,7 @@ SELECT
     e.id_extracao,
     e.data_extracao,
     an.id_animal,
-    an.nome_animal AS animal_sorteado
+    an.nome_animal AS animal_sorteado                            -- Nome do animal deve ser referente ao animal sorteado
 FROM resultado r
-JOIN extracao e ON e.id_extracao = r.id_extracao
-JOIN animal an ON an.id_animal = r.id_animal;
+JOIN extracao e ON e.id_extracao = r.id_extracao                 -- Relaciona a tabela resultados com a extracao 
+JOIN animal an ON an.id_animal = r.id_animal;                    -- Relaciona a tabela resultado com a dos animais
