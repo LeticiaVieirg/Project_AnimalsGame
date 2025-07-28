@@ -263,50 +263,51 @@ VALUES (5, 2, 11, 200.00);
 
 
 -- Trigger 2
-DELIMITER $$
-CREATE PROCEDURE pagar_apostas()
+DELIMITER $$                                                             -- Delimitador para criar o proccedure
+CREATE PROCEDURE pagar_apostas()                                         -- Declara a criacao do procedure
 BEGIN 
     -- ATUALIZAR O SALDO DOS CLIENTES QUE GANHARAM APOSTAS
     UPDATE cliente c
     JOIN (
-        SELECT a.id_cliente, SUM(a.valor_apostado * 18) AS premio_total
+        SELECT a.id_cliente, SUM(a.valor_apostado * 18) AS premio_total  -- Calcula o valor a ser pago como premio 
         FROM aposta a
-        JOIN resultado r ON a.id_extracao = r.id_extracao
-        WHERE a.id_animal = r.id_animal AND a.pago = FALSE 
-        GROUP BY a.id_cliente
+        JOIN resultado r ON a.id_extracao = r.id_extracao                -- Cliente com apostas vencedoras
+        WHERE a.id_animal = r.id_animal AND a.pago = FALSE               -- Aposta ainda nao foi paga
+        GROUP BY a.id_cliente                                            -- Agrupamento 
     ) ganhadores ON c.id_cliente = ganhadores.id_cliente 
-    SET c.saldo = c.saldo + ganhadores.premio_total;
-    
+    SET c.saldo = c.saldo + ganhadores.premio_total;                     -- Calculo do saldo total de cada cliente vencedor
+     
     -- Marcar apostas como pagas
-    UPDATE aposta a 
+    UPDATE aposta a                                                     -- Atualiza a tabela apostas
     JOIN resultado r ON a.id_extracao = r.id_extracao 
-    SET a.pago = TRUE
-    WHERE a.id_animal = r.id_animal AND a.pago = FALSE;
+    SET a.pago = TRUE                                                   -- Apostas vencedoras e pagas
+    WHERE a.id_animal = r.id_animal AND a.pago = FALSE;                 -- Apostas vencedoras que ainda nao foram pagas
 END $$
-DELIMITER ;
+DELIMITER ;                                                             -- Restaura o delimitador criado
 
 -- Teste 2.1: Aposta em extração sem resultado 
-START TRANSACTION;
-SELECT '=== TESTE 2.1: Extração sem resultado ===' AS mensagem;
-SELECT e.id_extracao, e.data_extracao, r.id_animal 
-FROM extracao e LEFT JOIN resultado r ON e.id_extracao = r.id_extracao
-WHERE r.id_extracao IS NULL;
+START TRANSACTION;                                                            -- Inicia uma transação temporária
+SELECT '=== TESTE 2.1: Extração sem resultado ===' AS mensagem;               -- Mensagem que de nome do teste 
+SELECT e.id_extracao, e.data_extracao, r.id_animal                            -- Seleciona em extracao, o id, a data e o id do animal
+FROM extracao e LEFT JOIN resultado r ON e.id_extracao = r.id_extracao        -- Inclui todas as extracoes, nao somente onde o resultado equivale a extracao
+WHERE r.id_extracao IS NULL;                                                  -- Filtra onde nao existe correspondencia 
 
 INSERT INTO aposta (id_cliente, id_extracao, id_animal, valor_apostado) 
-VALUES (3, 6, 5, 20.00);
-ROLLBACK;
+VALUES (3, 6, 5, 20.00);                                                      -- Testes que nao afetam dados reais
+ROLLBACK;                                                                     -- Operacoes podem ser desfeitas com rollback
+
 
 -- Teste 2.2: Aposta em extração com resultado 
-START TRANSACTION;
+START TRANSACTION;                                              
 SELECT '=== TESTE 2.2: Extração com resultado ===' AS mensagem;
 SELECT e.id_extracao, e.data_extracao, r.id_animal 
-FROM extracao e JOIN resultado r ON e.id_extracao = r.id_extracao
-LIMIT 1;
+FROM extracao e JOIN resultado r ON e.id_extracao = r.id_extracao           -- Seleciona uma extracao com resultado associado, somente essas serao selecionadas
+LIMIT 1;                                                                    -- Pega somente um regristro para tete
 
--- Falha na insercao
-INSERT INTO aposta (id_cliente, id_extracao, id_animal, valor_apostado) 
+-- Falha na insercao                                                       -- O sistema nao permite apostar em um sorteio ja realizado
+INSERT INTO aposta (id_cliente, id_extracao, id_animal, valor_apostado)    -- Tenta inserir uma aposta no id 1, a mesma ja tem resultado
 VALUES (3, 1, 5, 20.00);
-ROLLBACK;
+ROLLBACK;                                                                  -- Desfaz a transacao, mantendo o banco original
 
 
 -- Trigger 3
@@ -317,65 +318,68 @@ CREATE TRIGGER trg_aposta_antes_inserir_validar_saldo_animal
 BEFORE INSERT ON aposta
 FOR EACH ROW
 BEGIN 
-    DECLARE saldo_atual DECIMAL(10,2);
+    DECLARE saldo_atual DECIMAL(10,2);                              -- Declara temporariamente o saldo atual de um cliente 
     
     -- OBTER SALDO DO CLIENTE 
-    SELECT saldo INTO saldo_atual
-    FROM cliente
-    WHERE id_cliente = NEW.id_cliente;
+    SELECT saldo INTO saldo_atual                                   -- Consulta o saldo atual do cliente que esta realizando uma aposta 
+    FROM cliente                                                    -- Diretamente de cliente
+    WHERE id_cliente = NEW.id_cliente;                              -- Onde o id do cliente equivale ao valor atual 
     
     -- VERIFICA SE O CLIENTE TEM SALDO SUFICIENTE
-    IF saldo_atual < NEW.valor_apostado THEN 
+    IF saldo_atual < NEW.valor_apostado THEN                        -- Se o saldo atual for menor que o valor apostado
         -- CASO NÃO OBTENHA SALDO SUFICIENTE
-        SIGNAL SQLSTATE '45000' 
-        SET MESSAGE_TEXT = 'SALDO INSUFICIENTE. APOSTA NÃO PODE SER REALIZADA';
+        SIGNAL SQLSTATE '45000'                                     -- Nomeando o erro 
+        SET MESSAGE_TEXT = 'SALDO INSUFICIENTE. 
+                            APOSTA NÃO PODE SER REALIZADA';         -- Mensagem de erro 
     ELSE 
         -- ATUALIZA O SALDO DO CLIENTE
-        UPDATE cliente
-        SET saldo = saldo - NEW.valor_apostado
-        WHERE id_cliente = NEW.id_cliente;
+        UPDATE cliente                                              -- Cliente com saldo suficiente para fazer aposta
+        SET saldo = saldo - NEW.valor_apostado                      -- Calcula o saldo do cliente menos o valor da aposta
+        WHERE id_cliente = NEW.id_cliente;                          -- Permite a aposta
     END IF;
 END//
 DELIMITER ;
 
 -- Teste 3.1: Animal existente 
-START TRANSACTION;
+START TRANSACTION;                                                         -- Inicio do bloco de transacao que pode ser revertido
 SELECT '=== TESTE 3.1: Animal existente ===' AS mensagem;
-SELECT id_animal, nome_animal FROM animal WHERE id_animal = 11;
+SELECT id_animal, nome_animal FROM animal WHERE id_animal = 11;            -- Consulta de dados na tabela animal
 
-INSERT INTO aposta (id_cliente, id_extracao, id_animal, valor_apostado) 
+INSERT INTO aposta (id_cliente, id_extracao, id_animal, valor_apostado)    -- Inserção de uma aposta valida
 VALUES (3, 2, 11, 20.00);
 ROLLBACK;
 
 -- Teste 3.2: Animal inexistente
 START TRANSACTION;
 SELECT '=== TESTE 3.2: Animal inexistente ===' AS mensagem;
-SELECT id_animal FROM animal WHERE id_animal = 999;
+SELECT id_animal FROM animal WHERE id_animal = 999;                       -- Consulta de uma animal com id invalido
 
--- Inserção cpm falha
-INSERT INTO aposta (id_cliente, id_extracao, id_animal, valor_apostado) 
+-- Inserção com falha
+INSERT INTO aposta (id_cliente, id_extracao, id_animal, valor_apostado)   -- Inserção nao permitida devido ao id invalido 
 VALUES (3, 2, 999, 20.00);
 ROLLBACK;
+
 
 -- Trigger 4
 -- Caso o cliente tenha saldo, confirma aposta e atualizar o saldo 
 DELIMITER //
 
 CREATE TRIGGER trg_aposta_antes_inserir_validar_extracao
-BEFORE INSERT ON aposta
-FOR EACH ROW 
+BEFORE INSERT ON aposta                                       -- Executa antes de cada insercao na tabela aposta
+FOR EACH ROW                                                  -- Aplica a mesma logica para cada linha sendo inserida
 BEGIN 
-    DECLARE verifica_resultados INT;
+    DECLARE verifica_resultados INT;                          -- Declaracao de uma variavel temporaria que armazena a quantidade de resultados encontrados
     
     -- Verificar se a extração já tem resultado
-    SELECT COUNT(*) INTO verifica_resultados
-    FROM resultado
-    WHERE id_extracao = NEW.id_extracao;
+    SELECT COUNT(*) INTO verifica_resultados                  -- Consulta quantos resultados existem para extracao que esta sendo apostada
+    FROM resultado 
+    WHERE id_extracao = NEW.id_extracao;                      -- Acessa o valor da colua id_extracao que esta sendo inserido
     
     -- Se já tiver resultado 
-    IF verifica_resultados > 0 THEN
-        SIGNAL SQLSTATE '45000' 
-        SET MESSAGE_TEXT = 'EXTRAÇÃO JÁ FOI REALIZADA. JÁ TEM RESULTADO CADASTRADO';
+    IF verifica_resultados > 0 THEN                          -- Se o verificador for maior que zero, exibe uma mensagem de erro 
+        SIGNAL SQLSTATE '45000'                              -- Bloqueio da insercao
+        SET MESSAGE_TEXT = 'EXTRAÇÃO JÁ FOI REALIZADA.
+                            JÁ TEM RESULTADO CADASTRADO';
     END IF;
 END//
 
@@ -414,11 +418,11 @@ INSERT INTO aposta (id_animal, valor_apostado) VALUES (999, 10.00);
 -- Trigger 6 : Registrar alteracoes de saldo
 DELIMITER //
 CREATE TRIGGER trg_registrar_alteracao_saldo
-AFTER UPDATE ON cliente
+AFTER UPDATE ON cliente                                                                -- Executa depois de cada atualizacao em cliente
 FOR EACH ROW
 BEGIN
-    IF OLD.saldo != NEW.saldo THEN
-        INSERT INTO historico_saldo (id_cliente, saldo_anterior, saldo_novo, motivo)
+    IF OLD.saldo != NEW.saldo THEN                                                     -- Compara os valores antigos com o novo valor
+        INSERT INTO historico_saldo (id_cliente, saldo_anterior, saldo_novo, motivo)   -- Insere um novo registro com os valores seguintes
         VALUES (NEW.id_cliente, OLD.saldo, NEW.saldo, 'Alteração de saldo');
     END IF;
 END//
@@ -434,6 +438,7 @@ CREATE TABLE IF NOT EXISTS historico_saldo (
     motivo VARCHAR(100),
     FOREIGN KEY (id_cliente) REFERENCES cliente(id_cliente)
 );
+
 -- Teste 4.1: Alteração de saldo
 START TRANSACTION;
 SELECT '=== TESTE 4.1: Alteração de saldo ===' AS mensagem;
