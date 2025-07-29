@@ -13,7 +13,7 @@ BEGIN
     WHERE id_cliente = NEW.id_cliente;
 
     IF saldo_atual < NEW.valor_apostado THEN 
-        SET MESSAGE_TEXT = 'SALDO INSUFICIENTE. APOSTA NÃO PODE SER REALIZADA';
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'SALDO INSUFICIENTE. APOSTA NÃO PODE SER REALIZADA';
     ELSE 
         UPDATE cliente
         SET saldo = saldo - NEW.valor_apostado
@@ -35,7 +35,7 @@ BEGIN
     WHERE id_extracao = NEW.id_extracao;
 
     IF verifica_resultados > 0 THEN
-        SET MESSAGE_TEXT = 'EXTRAÇÃO JÁ FOI REALIZADA. JÁ TEM RESULTADO CADASTRADO';
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'EXTRAÇÃO JÁ FOI REALIZADA. JÁ TEM RESULTADO CADASTRADO';
     END IF;
 END $$
 DELIMITER ;
@@ -53,7 +53,7 @@ BEGIN
     WHERE id_animal = NEW.id_animal;
 
     IF animal_cadastrado = 0 THEN
-        SET MESSAGE_TEXT = 'NÃO É POSSÍVEL VALIDAR SUA APOSTA, POIS O ANIMAL É INVÁLIDO';
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'NÃO É POSSÍVEL VALIDAR SUA APOSTA, POIS O ANIMAL É INVÁLIDO';
     END IF;
 END $$
 DELIMITER ;
