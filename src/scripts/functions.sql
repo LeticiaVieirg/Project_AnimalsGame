@@ -223,29 +223,29 @@ UPDATE resultado SET id_animal = 12 WHERE id_extracao = 3;
 -- Function 1
 -- Função para retornar o saldo atual de um cliente pelo ID
 DELIMITER $$
-CREATE FUNCTION fn_saldo_cliente(p_id_cliente INT)
-RETURNS DECIMAL(10,2)
-DETERMINISTIC
+CREATE FUNCTION fn_saldo_cliente(p_id_cliente INT)       -- declaracao da funcao saldo cliente que recebe como parametro o id cliente
+RETURNS DECIMAL(10,2)                                    -- Retorna um valor decimal
+DETERMINISTIC                                            -- Indica que a funcao retorna o mesmo resultado para os mesmos parametros de entrada
 BEGIN
-    DECLARE saldo_cliente DECIMAL(10,2);
-    SELECT saldo INTO saldo_cliente
-    FROM cliente
+    DECLARE saldo_cliente DECIMAL(10,2);                 -- Declara uma variavel que armazena o saldo de forma temporaria
+    SELECT saldo INTO saldo_cliente                      -- Consulta o saldo do cliente 
+    FROM cliente                                         -- Em cliente, busca o saldo de um determinado cliente 
     WHERE id_cliente = p_id_cliente;
-    RETURN saldo_cliente;
+    RETURN saldo_cliente;                                -- Armazena o resultado na variavel saldo cliente
 END $$
 DELIMITER ;
 
 -- Function 2
 -- Função para calcular o total apostado por um cliente
 DELIMITER $$
-CREATE FUNCTION fn_total_apostado_por_cliente(p_id_cliente INT)
-RETURNS DECIMAL(10,2)
-DETERMINISTIC
+CREATE FUNCTION fn_total_apostado_por_cliente(p_id_cliente INT)     -- Cria a funcao total apostado por cliente e passa o parametro 
+RETURNS DECIMAL(10,2)                                               -- Retorna um valor decimal 
+DETERMINISTIC                                                       -- A funcao retorna os mesmos resultados caso tenham os mesmos parametros
 BEGIN
-    DECLARE total_apostado DECIMAL(10,2);
-    SELECT COALESCE(SUM(valor_apostado), 0) INTO total_apostado
-    FROM aposta
+    DECLARE total_apostado DECIMAL(10,2);                           -- Variavel total apostado temporaria 
+    SELECT COALESCE(SUM(valor_apostado), 0) INTO total_apostado     -- Coalesce retorna 0 caso nao tenha apostas e soma todos os valores apostados
+    FROM aposta                                                     -- Em apostas, busca o id do cliente 
     WHERE id_cliente = p_id_cliente;
-    RETURN total_apostado;
+    RETURN total_apostado;                                          -- Retorna o total apostado de um determinado cliente
 END $$
 DELIMITER ;
